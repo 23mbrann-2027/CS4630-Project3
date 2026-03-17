@@ -7,7 +7,8 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import accuracy_score, f1_score, roc_auc_score, average_precision_score
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.ensemble import RandomForestClassifier
-
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.preprocessing import StandardScaler
 # load data
 data = pd.read_csv(
     "Data/HIGGS.csv.gz",
@@ -97,3 +98,38 @@ print("ROC-AUC:", rf_roc)
 print("PR-AUC:", rf_pr)
 print("Training Time:", rf_train_time)
 print("Inference Time:", rf_infer_time)
+
+
+
+
+# Scale features
+scaler = StandardScaler()
+X_train_scaled = scaler.fit_transform(X_train)
+X_test_scaled = scaler.transform(X_test)
+
+# Train k-NN
+knn = KNeighborsClassifier(n_neighbors=5)
+
+start_train = time.time()
+knn.fit(X_train_scaled, y_train)
+knn_train_time = time.time() - start_train
+
+# Predictions
+start_pred = time.time()
+knn_preds = knn.predict(X_test_scaled)
+knn_probs = knn.predict_proba(X_test_scaled)[:,1]
+knn_infer_time = time.time() - start_pred
+
+# Evaluation
+knn_acc = accuracy_score(y_test, knn_preds)
+knn_f1 = f1_score(y_test, knn_preds)
+knn_roc = roc_auc_score(y_test, knn_probs)
+knn_pr = average_precision_score(y_test, knn_probs)
+
+print("\nk-NN Results")
+print("Accuracy:", knn_acc)
+print("F1 Score:", knn_f1)
+print("ROC-AUC:", knn_roc)
+print("PR-AUC:", knn_pr)
+print("Training Time:", knn_train_time)
+print("Inference Time:", knn_infer_time)
