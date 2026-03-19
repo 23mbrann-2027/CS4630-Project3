@@ -10,6 +10,7 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.preprocessing import StandardScaler
 from sklearn.linear_model import SGDClassifier
+from xgboost import XGBClassifier
 
 # load data
 data = pd.read_csv(
@@ -182,3 +183,44 @@ print("ROC-AUC:", svm_roc)
 print("PR-AUC:", svm_pr)
 print("Training Time:", svm_train_time)
 print("Inference Time:", svm_infer_time)
+
+
+
+# XGBoost (Gradient Boosting)
+
+xgb = XGBClassifier(
+    n_estimators=200,        # number of trees
+    max_depth=6,             # controls complexity
+    learning_rate=0.1,
+    subsample=0.8,           # row sampling
+    colsample_bytree=0.8,    # feature sampling
+    eval_metric="logloss",
+    tree_method="hist",     
+    random_state=42,
+    n_jobs=-1
+)
+
+# Train
+start_train = time.time()
+xgb.fit(X_train, y_train)
+xgb_train_time = time.time() - start_train
+
+# Predict
+start_pred = time.time()
+xgb_preds = xgb.predict(X_test)
+xgb_probs = xgb.predict_proba(X_test)[:, 1]
+xgb_infer_time = time.time() - start_pred
+
+# Metrics
+xgb_acc = accuracy_score(y_test, xgb_preds)
+xgb_f1 = f1_score(y_test, xgb_preds)
+xgb_roc = roc_auc_score(y_test, xgb_probs)
+xgb_pr = average_precision_score(y_test, xgb_probs)
+
+print("\nXGBoost Results")
+print("Accuracy:", xgb_acc)
+print("F1 Score:", xgb_f1)
+print("ROC-AUC:", xgb_roc)
+print("PR-AUC:", xgb_pr)
+print("Training Time:", xgb_train_time)
+print("Inference Time:", xgb_infer_time)
