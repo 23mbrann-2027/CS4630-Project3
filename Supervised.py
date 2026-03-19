@@ -9,6 +9,8 @@ from sklearn.tree import DecisionTreeClassifier
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.preprocessing import StandardScaler
+from sklearn.linear_model import SGDClassifier
+
 # load data
 data = pd.read_csv(
     "Data/HIGGS.csv.gz",
@@ -133,3 +135,50 @@ print("ROC-AUC:", knn_roc)
 print("PR-AUC:", knn_pr)
 print("Training Time:", knn_train_time)
 print("Inference Time:", knn_infer_time)
+
+
+
+
+# Linear SVM
+
+
+# Scale features
+scaler_svm = StandardScaler()
+X_train_scaled = scaler_svm.fit_transform(X_train)
+X_test_scaled = scaler_svm.transform(X_test)
+
+# Linear SVM
+svm = SGDClassifier(
+    loss="hinge",        # linear SVM objective
+    alpha=1e-4,          # regularization strength
+    max_iter=1000,
+    tol=1e-3,
+    random_state=42
+)
+
+# Train
+start_train = time.time()
+svm.fit(X_train_scaled, y_train)
+svm_train_time = time.time() - start_train
+
+# Predictions
+start_pred = time.time()
+svm_preds = svm.predict(X_test_scaled)
+
+# decision_function replaces predict_proba for SVM
+svm_scores = svm.decision_function(X_test_scaled)
+svm_infer_time = time.time() - start_pred
+
+# Metrics
+svm_acc = accuracy_score(y_test, svm_preds)
+svm_f1 = f1_score(y_test, svm_preds)
+svm_roc = roc_auc_score(y_test, svm_scores)
+svm_pr = average_precision_score(y_test, svm_scores)
+
+print("\nLinear SVM (SGD) Results")
+print("Accuracy:", svm_acc)
+print("F1 Score:", svm_f1)
+print("ROC-AUC:", svm_roc)
+print("PR-AUC:", svm_pr)
+print("Training Time:", svm_train_time)
+print("Inference Time:", svm_infer_time)
