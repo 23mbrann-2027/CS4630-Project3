@@ -11,6 +11,7 @@ from sklearn.neighbors import KNeighborsClassifier
 from sklearn.preprocessing import StandardScaler
 from sklearn.linear_model import SGDClassifier
 from xgboost import XGBClassifier
+from sklearn.svm import SVC
 
 # load data
 data = pd.read_csv(
@@ -224,3 +225,26 @@ print("ROC-AUC:", xgb_roc)
 print("PR-AUC:", xgb_pr)
 print("Training Time:", xgb_train_time)
 print("Inference Time:", xgb_infer_time)
+
+
+
+
+#RBF-kernel SVM
+
+rbf_svm = SVC(
+    kernel='rbf',
+    C=1.0,
+    gamma='scale',
+    probability=True
+)
+
+start_train = time.time()
+rbf_svm.fit(X_train_scaled, y_train)
+rbf_train_time = time.time() - start_train
+
+start_pred = time.time()
+rbf_preds = rbf_svm.predict(X_test_scaled)
+rbf_probs = rbf_svm.predict_proba(X_test_scaled)[:,1]
+rbf_infer_time = time.time() - start_pred
+
+print("RBF SVM ROC-AUC:", roc_auc_score(y_test, rbf_probs))
