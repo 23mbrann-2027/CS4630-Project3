@@ -11,7 +11,6 @@ from sklearn.metrics import accuracy_score, f1_score, roc_auc_score, average_pre
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.neighbors import KNeighborsClassifier
-from sklearn.preprocessing import StandardScaler
 from sklearn.linear_model import SGDClassifier
 from xgboost import XGBClassifier
 from sklearn.svm import SVC
