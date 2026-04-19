@@ -358,6 +358,28 @@ xgb_cv_preds = best_xgb.predict(X_test)
 xgb_cv_probs = best_xgb.predict_proba(X_test)[:, 1]
 xgb_cv_infer_t = time.time() - t0
 
+
+# Case Study
+df_cases = pd.DataFrame({
+    'true':  y_test.values,
+    'pred':  xgb_cv_preds,
+    'prob':  xgb_cv_probs
+}).reset_index(drop=True)
+
+high_conf_correct = df_cases[(df_cases.true == df_cases.pred) & (df_cases.prob > 0.85)].head(2)
+mod_conf_correct  = df_cases[(df_cases.true == df_cases.pred) & (df_cases.prob.between(0.55, 0.70))].head(2)
+false_neg         = df_cases[(df_cases.true == 1) & (df_cases.pred == 0)].head(3)
+false_pos         = df_cases[(df_cases.true == 0) & (df_cases.pred == 1)].head(3)
+near_threshold    = df_cases[df_cases.prob.between(0.45, 0.55)].head(3)
+
+case_study = pd.concat([
+    high_conf_correct, mod_conf_correct,
+    false_neg, false_pos, near_threshold
+]).drop_duplicates().head(10)
+
+print("\nXGBoost Case Study: Individual Predictions")
+print(case_study.to_string(index=False))
+
 # --- RBF SVM — subsampled to 100k rows ---
 # Justification: sklearn's SVC has O(n^2) memory and O(n^2-n^3) training
 # complexity. A timing pilot on the full 800k training rows projected
