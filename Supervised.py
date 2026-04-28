@@ -221,17 +221,12 @@ print("Training Time:", xgb_train_time)
 print("Inference Time:", xgb_infer_time)
 
 # Hyperparameter tuning
-
-# We use RandomizedSearchCV with 3-fold stratified CV for each model.
-# This searches a random subset of the hyperparameter space, which is far
-# more practical than exhaustive GridSearch on 1M rows.
 import warnings
 
 warnings.filterwarnings("ignore")
 
-
-
 cv = StratifiedKFold(n_splits=3, shuffle=True, random_state=42)
+
 # --- Decision Tree ---
 tree_param_dist = {
     "max_depth":        randint(4, 20),
@@ -245,12 +240,14 @@ tree_search = RandomizedSearchCV(
     n_jobs=-1, random_state=42, verbose=1
 )
 print("\nTuning Decision Tree...")
-t0 = time.time()
 tree_search.fit(X_train, y_train)
-tree_cv_train_t = time.time() - t0
 print("Best params:", tree_search.best_params_)
 
 best_tree = tree_search.best_estimator_
+t0 = time.time()
+best_tree.fit(X_train, y_train)
+tree_cv_train_t = time.time() - t0
+
 t0 = time.time()
 tree_cv_preds = best_tree.predict(X_test)
 tree_cv_probs = best_tree.predict_proba(X_test)[:, 1]
@@ -270,12 +267,14 @@ rf_search = RandomizedSearchCV(
     n_jobs=-1, random_state=42, verbose=1
 )
 print("\nTuning Random Forest...")
-t0 = time.time()
 rf_search.fit(X_train, y_train)
-rf_cv_train_t = time.time() - t0
 print("Best params:", rf_search.best_params_)
 
 best_rf = rf_search.best_estimator_
+t0 = time.time()
+best_rf.fit(X_train, y_train)
+rf_cv_train_t = time.time() - t0
+
 t0 = time.time()
 rf_cv_preds = best_rf.predict(X_test)
 rf_cv_probs = best_rf.predict_proba(X_test)[:, 1]
@@ -294,12 +293,14 @@ knn_search = RandomizedSearchCV(
     n_jobs=-1, random_state=42, verbose=1
 )
 print("\nTuning k-NN...")
-t0 = time.time()
 knn_search.fit(X_train_scaled, y_train)
-knn_cv_train_t = time.time() - t0
 print("Best params:", knn_search.best_params_)
 
 best_knn = knn_search.best_estimator_
+t0 = time.time()
+best_knn.fit(X_train_scaled, y_train)
+knn_cv_train_t = time.time() - t0
+
 t0 = time.time()
 knn_cv_preds = best_knn.predict(X_test_scaled)
 knn_cv_probs = best_knn.predict_proba(X_test_scaled)[:, 1]
@@ -318,12 +319,14 @@ svm_search = RandomizedSearchCV(
     n_jobs=-1, random_state=42, verbose=1
 )
 print("\nTuning Linear SVM...")
-t0 = time.time()
 svm_search.fit(X_train_scaled, y_train)
-svm_cv_train_t = time.time() - t0
 print("Best params:", svm_search.best_params_)
 
 best_svm = svm_search.best_estimator_
+t0 = time.time()
+best_svm.fit(X_train_scaled, y_train)
+svm_cv_train_t = time.time() - t0
+
 t0 = time.time()
 svm_cv_preds  = best_svm.predict(X_test_scaled)
 svm_cv_scores = best_svm.decision_function(X_test_scaled)
@@ -346,44 +349,21 @@ xgb_search = RandomizedSearchCV(
     n_jobs=-1, random_state=42, verbose=1
 )
 print("\nTuning XGBoost...")
-t0 = time.time()
 xgb_search.fit(X_train, y_train)
-xgb_cv_train_t = time.time() - t0
 print("Best params:", xgb_search.best_params_)
 
 best_xgb = xgb_search.best_estimator_
+t0 = time.time()
+best_xgb.fit(X_train, y_train)
+xgb_cv_train_t = time.time() - t0
+
 t0 = time.time()
 xgb_cv_preds = best_xgb.predict(X_test)
 xgb_cv_probs = best_xgb.predict_proba(X_test)[:, 1]
 xgb_cv_infer_t = time.time() - t0
 
 
-# Case Study
-df_cases = pd.DataFrame({
-    'true':  y_test.values,
-    'pred':  xgb_cv_preds,
-    'prob':  xgb_cv_probs
-}).reset_index(drop=True)
-
-high_conf_correct = df_cases[(df_cases.true == df_cases.pred) & (df_cases.prob > 0.85)].head(2)
-mod_conf_correct  = df_cases[(df_cases.true == df_cases.pred) & (df_cases.prob.between(0.55, 0.70))].head(2)
-false_neg         = df_cases[(df_cases.true == 1) & (df_cases.pred == 0)].head(3)
-false_pos         = df_cases[(df_cases.true == 0) & (df_cases.pred == 1)].head(3)
-near_threshold    = df_cases[df_cases.prob.between(0.45, 0.55)].head(3)
-
-case_study = pd.concat([
-    high_conf_correct, mod_conf_correct,
-    false_neg, false_pos, near_threshold
-]).drop_duplicates().head(10)
-
-print("\nXGBoost Case Study: Individual Predictions")
-print(case_study.to_string(index=False))
-
 # --- RBF SVM — subsampled to 100k rows ---
-# Justification: sklearn's SVC has O(n^2) memory and O(n^2-n^3) training
-# complexity. A timing pilot on the full 800k training rows projected
-# > 8 hours. Subsampling to 100k keeps runtime manageable while still
-# preserving the original class balance (stratified split).
 SUBSAMPLE_N = 100_000
 sub_idx = np.random.default_rng(42).choice(len(X), size=SUBSAMPLE_N, replace=False)
 X_sub = X.iloc[sub_idx].reset_index(drop=True)
@@ -405,13 +385,15 @@ rbf_search = GridSearchCV(
     rbf_param_grid,
     cv=3, scoring="roc_auc", n_jobs=-1, verbose=1
 )
-print("\nTuning RBF SVM (50k subsample)...")
-t0 = time.time()
+print("\nTuning RBF SVM (100k subsample)...")
 rbf_search.fit(X_train_sub_sc, y_train_sub)
-rbf_cv_train_t = time.time() - t0
 print("Best params:", rbf_search.best_params_)
 
 best_rbf = rbf_search.best_estimator_
+t0 = time.time()
+best_rbf.fit(X_train_sub_sc, y_train_sub)
+rbf_cv_train_t = time.time() - t0
+
 t0 = time.time()
 rbf_cv_preds = best_rbf.predict(X_test_sub_sc)
 rbf_cv_probs = best_rbf.decision_function(X_test_sub_sc)
